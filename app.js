@@ -189,11 +189,8 @@ function applyLockState() {
   $('#locked-banner').classList.toggle('hidden', !locked);
   $('#btn-lock').classList.toggle('hidden', locked);
   $('#btn-pdf').classList.toggle('hidden', !locked);
+  $('#pdf-hint').classList.toggle('hidden', !locked);
   $('#btn-unlock').classList.toggle('hidden', !locked);
-
-  const canShare = locked && navigator.canShare &&
-    navigator.canShare({ files: [new File(['x'], 'a.pdf', { type: 'application/pdf' })] });
-  $('#btn-share').classList.toggle('hidden', !canShare);
 }
 
 function doLock() {
@@ -295,127 +292,32 @@ function todayStr() {
   return p(t.getDate()) + '.' + p(t.getMonth() + 1) + '.' + t.getFullYear();
 }
 
-/* ---------------- יצירת PDF ---------------- */
+/* ---------------- הפקת PDF דרך הדפסת הדפדפן ---------------- */
 
-const MARGIN_PT = 28;
-const A4_W = 595.28, A4_H = 841.89;
-const PV_W = 794;                                  // רוחב תצוגת ההדפסה בפיקסלים
-const PT_PER_PX = (A4_W - 2 * MARGIN_PT) / PV_W;   // יחס המרה
-const PAGE_H_PX = (A4_H - 2 * MARGIN_PT) / PT_PER_PX;
+/* הדפדפן מייצר את ה-PDF בעצמו ("שמירה כ-PDF"). כך הטקסט העברי נשאר טקסט
+   אמיתי הניתן לחיפוש והעתקה, הקובץ קטן, ואין תלות בספריות חיצוניות. */
 
-function breakPoints(pv) {
-  const base = pv.getBoundingClientRect().top;
-  const els = pv.querySelectorAll('tr, .pv-free, h2, .pv-meta');
-  return Array.from(els).map(el => el.getBoundingClientRect().top - base);
-}
-
-async function makePdf() {
-  const pv = buildPrintView();
-  if (document.fonts && document.fonts.ready) await document.fonts.ready;
-
-  const canvas = await html2canvas(pv, {
-    scale: 2,
-    backgroundColor: '#ffffff',
-    useCORS: true,
-    logging: false,
-    windowWidth: PV_W
-  });
-
-  const scale = canvas.width / PV_W;            // פיקסלים בקנבס לכל פיקסל CSS
-  const totalCss = canvas.height / scale;
-  const breaks = breakPoints(pv);
-
-  const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
-  let start = 0, first = true;
-
-  while (start < totalCss - 1) {
-    let end = start + PAGE_H_PX;
-    if (end >= totalCss) {
-      end = totalCss;
-    } else {
-      const cand = breaks.filter(t => t > start + 60 && t <= end);
-      if (cand.length) end = Math.max.apply(null, cand);
-    }
-
-    const sliceCss = end - start;
-    const slice = document.createElement('canvas');
-    slice.width = canvas.width;
-    slice.height = Math.round(sliceCss * scale);
-    const ctx = slice.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(canvas, 0, Math.round(start * scale), canvas.width, slice.height,
-                          0, 0, canvas.width, slice.height);
-
-    if (!first) doc.addPage();
-    first = false;
-    doc.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG',
-      MARGIN_PT, MARGIN_PT, A4_W - 2 * MARGIN_PT, sliceCss * PT_PER_PX);
-
-    start = end;
-  }
-
-  $('#print-root').innerHTML = '';
-  return doc;
-}
-
+/* שם הקובץ המוצע נלקח מכותרת המסמך, ולכן משנים אותה רגע לפני ההדפסה. */
 function pdfName() {
   const child = ($('#child').value.trim() || 'ללא שם').replace(/[\\/:*?"<>|]/g, '');
   const who = formType === 'staff' ? 'צוות חינוכי' : 'הורים';
-  return 'שאלון קשב - ' + child + ' - ' + who + '.pdf';
+  return 'שאלון קשב - ' + child + ' - ' + who;
 }
 
-async function withBusy(btn, label, fn) {
-  const old = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = label;
-  try {
-    await fn();
-  } catch (e) {
-    console.error(e);
-    toast('אירעה שגיאה ביצירת ה-PDF. נסו שוב.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = old;
-  }
-}
+const PAGE_TITLE = 'שאלון הערכה להפרעת קשב';
 
-/* אם ספריות ה-PDF לא נטענו, נופלים חזרה להדפסת הדפדפן ("שמור כ-PDF") */
-function libsReady() {
-  return typeof window.html2canvas === 'function' && window.jspdf && window.jspdf.jsPDF;
-}
-
-function printFallback() {
+function exportPdf() {
   buildPrintView();
-  toast('בחרו "שמירה כ-PDF" בחלון ההדפסה.');
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => { $('#print-root').innerHTML = ''; }, 500);
-  }, 400);
+  document.title = pdfName();
+  window.print();
 }
 
-function downloadPdf() {
-  if (!libsReady()) { printFallback(); return; }
-  return withBusy($('#btn-pdf'), 'מכין PDF...', async () => {
-    const doc = await makePdf();
-    doc.save(pdfName());
-    toast('ה-PDF נשמר במכשיר.');
-  });
+function afterPrint() {
+  document.title = PAGE_TITLE;
+  $('#print-root').innerHTML = '';
 }
 
-function sharePdf() {
-  if (!libsReady()) { printFallback(); return; }
-  return withBusy($('#btn-share'), 'מכין PDF...', async () => {
-    const doc = await makePdf();
-    const blob = doc.output('blob');
-    const file = new File([blob], pdfName(), { type: 'application/pdf' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'שאלון הערכה להפרעת קשב' });
-    } else {
-      doc.save(pdfName());
-    }
-  });
-}
+window.addEventListener('afterprint', afterPrint);
 
 /* ---------------- הודעות ---------------- */
 
@@ -471,8 +373,7 @@ document.querySelectorAll('.pick').forEach(b =>
 $('#btn-back').addEventListener('click', goBack);
 $('#btn-lock').addEventListener('click', doLock);
 $('#btn-unlock').addEventListener('click', doUnlock);
-$('#btn-pdf').addEventListener('click', downloadPdf);
-$('#btn-share').addEventListener('click', sharePdf);
+$('#btn-pdf').addEventListener('click', exportPdf);
 
 $('#the-form').addEventListener('input', () => { if (!locked) { save(); updateProgress(); } });
 $('#the-form').addEventListener('change', () => { if (!locked) { save(); updateProgress(); } });

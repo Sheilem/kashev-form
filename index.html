@@ -116,8 +116,11 @@
 
     <div class="actions" id="actions">
       <button type="button" id="btn-lock" class="primary">סיום ונעילת הטופס</button>
-      <button type="button" id="btn-pdf" class="secondary hidden">הורדת PDF</button>
-      <button type="button" id="btn-share" class="secondary hidden">שליחת ה-PDF</button>
+      <button type="button" id="btn-pdf" class="primary hidden">הפקת PDF לשליחה</button>
+      <p class="pdf-hint hidden" id="pdf-hint">
+        ייפתח חלון הדפסה. בחרו ביעד <b>"שמירה כ-PDF"</b> (Save as PDF),
+        והקובץ יישמר במכשיר ויהיה מוכן לשליחה בוואטסאפ או במייל.
+      </p>
       <button type="button" id="btn-unlock" class="ghost hidden">ביטול נעילה</button>
     </div>
 
@@ -131,8 +134,6 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
