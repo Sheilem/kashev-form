@@ -48,9 +48,15 @@ create policy kashev_owner_can_select
   for select to authenticated
   using ((select auth.uid()) = 'f2f36808-7a36-4e7b-92c1-396222c9e756');
 
+-- הרשאות ברירת המחדל בפרויקט מעניקות ל-anon ול-authenticated הכל
+-- (כולל UPDATE/DELETE/TRUNCATE) על טבלאות חדשות, ולכן חייבים לשלול
+-- במפורש לפני שמעניקים. אחרת RLS לבדו חוסם, ותקלה יחידה בו חושפת הכל.
+revoke all on public.kashev_submissions from anon;
+revoke all on public.kashev_submissions from authenticated;
+
 -- PostgREST בודק גם הרשאות ברמת הטבלה, לא רק RLS
-grant insert on public.kashev_submissions to anon;
-grant select on public.kashev_submissions to authenticated;
+grant insert on public.kashev_submissions to anon;           -- שליחת טופס
+grant select on public.kashev_submissions to authenticated;  -- עמוד הצפייה
 
 -- לא ניתנת ל-anon הרשאת select, ולכן הטופס חייב לשלוח
 -- Prefer: return=minimal (ב-supabase-js: insert בלי select)
