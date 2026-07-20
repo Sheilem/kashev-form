@@ -1,67 +1,14 @@
 /* שאלון הערכה להפרעת קשב לפי DSM-V - גרסת מובייל
-   הכל רץ בדפדפן. שום נתון לא נשלח לשרת. */
+ *
+ * המילוי נשמר במכשיר תוך כדי עבודה. בעת הנעילה התשובות נשלחות פעם אחת
+ * לשרת, וגם ניתן להפיק מהן PDF דרך הדפסת הדפדפן.
+ * תוכן השאלון ותצוגת ההדפסה יושבים ב-questionnaire.js. */
 
 'use strict';
 
-/* ---------------- נתוני השאלון ---------------- */
-
-const GROUPS = [
-  {
-    key: 'inattention',
-    title: 'חוסר קשב',
-    items: [
-      'לא מצליח לשים לב לפרטים, עושה טעויות בשל חוסר תשומת לב',
-      'מתקשה להתמיד להתרכז בפעילות למידה או משחק',
-      'לעיתים קרובות נראה שלא מקשיב כשמדברים אליו',
-      'לעיתים קרובות לא ממלא אחר הוראות, לא מסיים שיעורי בית או מטלות',
-      'מתקשה להתארגן לביצוע עבודות ופעילויות',
-      'מתחמק מפעילויות המצריכות ריכוז או מאמץ מחשבתי מתמשך',
-      'מאבד חפצים',
-      'מוסח בקלות ע"י גירויים חיצוניים',
-      'שכחן לגבי פעילויות יום-יומיות'
-    ]
-  },
-  {
-    key: 'hyper',
-    title: 'פעילות יתר',
-    startNum: 1,
-    items: [
-      'מרבה להניע ידיים, רגליים, נע על כסאו',
-      'מתקשה להתמיד בישיבה בנסיבות המחייבות ישיבה (בכיתה, בארוחה וכו\')',
-      'מתרוצץ מסביב או מטפס במצבים בהם זה לא מתאים',
-      'מתקשה להעסיק את עצמו בפעילויות שקטות',
-      'תמיד בתנועה, כאילו מונע ע"י מנוע פנימי',
-      'דברן'
-    ]
-  },
-  {
-    key: 'impulse',
-    title: 'אימפולסיביות',
-    startNum: 7,
-    items: [
-      '"יורה" תשובות עוד בטרם הושלמה השאלה',
-      'מתקשה להמתין לתורו',
-      'מפריע או פולש לאחרים (כשהם באמצע שיחה או משחק)'
-    ]
-  }
-];
-
-const OPTIONS = ['לא', 'לפעמים', 'בדרך כלל'];
-
-const FREE_FIELDS = [
-  { name: 't_academic', label: '1. הישגים לימודיים' },
-  { name: 't_tasks',    label: '2. עמידה במטלות' },
-  { name: 't_social',   label: '3. מצב חברתי' },
-  { name: 't_behavior', label: '4. התנהגות' },
-  { name: 't_notes',    label: 'הערות נוספות' }
-];
-
-const TOTAL_ITEMS = GROUPS.reduce((n, g) => n + g.items.length, 0);
-
-/* ---------------- מצב ---------------- */
-
 let formType = null;          // 'staff' | 'parent'
 let locked = false;
+let sent = false;             // האם התשובות כבר נקלטו בשרת
 
 const $ = (sel) => document.querySelector(sel);
 const storeKey = () => 'kashev:' + formType;
@@ -119,12 +66,7 @@ function buildScale() {
   });
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, c =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
-
-/* ---------------- שמירה וטעינה ---------------- */
+/* ---------------- שמירה וטעינה מקומית ---------------- */
 
 function collect() {
   const data = { answers: {}, meta: {}, free: {} };
@@ -144,14 +86,14 @@ function collect() {
 
 function save() {
   try {
-    localStorage.setItem(storeKey(), JSON.stringify({ locked, data: collect() }));
+    localStorage.setItem(storeKey(), JSON.stringify({ locked, sent, data: collect() }));
   } catch (e) { /* מצב פרטי בדפדפן - ממשיכים בלי שמירה */ }
 }
 
 function load() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(storeKey()) || 'null'); } catch (e) { }
-  if (!saved) return false;
+  if (!saved) return { locked: false, sent: false };
 
   const d = saved.data || {};
   Object.entries(d.meta || {}).forEach(([k, v]) => { const el = $('#' + k); if (el) el.value = v; });
@@ -163,7 +105,7 @@ function load() {
     const el = document.querySelector('input[name="' + qid + '"][value="' + val + '"]');
     if (el) el.checked = true;
   });
-  return !!saved.locked;
+  return { locked: !!saved.locked, sent: !!saved.sent };
 }
 
 /* ---------------- התקדמות ---------------- */
@@ -180,6 +122,61 @@ function updateProgress() {
   $('#btn-lock').disabled = locked;
 }
 
+/* ---------------- שליחה לשרת ---------------- */
+
+async function sendToServer() {
+  const d = collect();
+  const payload = {
+    form_type: formType,
+    child_name: d.meta.child,
+    form_date: d.meta.date || null,
+    filler_name: d.meta.filler || null,
+    answers: d.answers,
+    free_text: formType === 'staff' ? d.free : {},
+    answered_count: Object.values(d.answers).filter(Boolean).length,
+    total_items: TOTAL_ITEMS
+  };
+
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      // ל-anon אין הרשאת קריאה, ולכן אסור לבקש את השורה בחזרה
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+}
+
+function setSendStatus(state, msg) {
+  const el = $('#send-status');
+  el.className = 'send-status ' + state;
+  el.innerHTML = msg;
+  el.classList.remove('hidden');
+}
+
+async function trySend() {
+  if (sent) return;
+  setSendStatus('pending', 'שולח את התשובות...');
+  try {
+    await sendToServer();
+    sent = true;
+    save();
+    setSendStatus('ok', '<b>התשובות נשלחו בהצלחה.</b> אפשר לסגור את העמוד.');
+  } catch (e) {
+    console.error(e);
+    setSendStatus('err',
+      '<b>השליחה לא הצליחה.</b> בדקו את החיבור לאינטרנט ונסו שוב, ' +
+      'או הפיקו PDF ושלחו אותו ידנית.' +
+      '<button type="button" id="btn-retry">נסו שוב</button>');
+    $('#btn-retry').addEventListener('click', trySend);
+  }
+}
+
 /* ---------------- נעילה ---------------- */
 
 function applyLockState() {
@@ -191,18 +188,19 @@ function applyLockState() {
   $('#btn-pdf').classList.toggle('hidden', !locked);
   $('#pdf-hint').classList.toggle('hidden', !locked);
   $('#btn-unlock').classList.toggle('hidden', !locked);
+  if (!locked) $('#send-status').classList.add('hidden');
 }
 
 function doLock() {
-  const missing = TOTAL_ITEMS - answeredCount();
   if (!$('#child').value.trim()) {
     toast('נא למלא את שם הילד/ה');
     $('#child').focus();
     return;
   }
-  const msg = missing > 0
-    ? 'נותרו ' + missing + ' שאלות ללא מענה.\nלנעול את הטופס בכל זאת?'
-    : 'לנעול את הטופס? לאחר הנעילה לא ניתן לערוך אותו.';
+  const missing = TOTAL_ITEMS - answeredCount();
+  const msg =
+    (missing > 0 ? 'נותרו ' + missing + ' שאלות ללא מענה.\n\n' : '') +
+    'בסיום הטופס יינעל והתשובות יישלחו. להמשיך?';
   if (!confirm(msg)) return;
 
   locked = true;
@@ -210,94 +208,33 @@ function doLock() {
   applyLockState();
   updateProgress();
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  toast('הטופס ננעל. ניתן להוריד PDF.');
+  trySend();
 }
 
 function doUnlock() {
-  if (!confirm('לבטל את הנעילה ולאפשר עריכה מחדש?')) return;
+  if (!confirm('לבטל את הנעילה ולאפשר עריכה מחדש?\n\n' +
+               'שים לב: אם התשובות כבר נשלחו, עריכה ונעילה מחדש ישלחו אותן שוב.')) return;
   locked = false;
+  sent = false;
   save();
   applyLockState();
   updateProgress();
   toast('הנעילה בוטלה.');
 }
 
-/* ---------------- תצוגת ההדפסה ---------------- */
+/* ---------------- הפקת PDF דרך הדפסת הדפדפן ---------------- */
 
 function buildPrintView() {
-  const d = collect();
-  const isStaff = formType === 'staff';
   const pv = document.createElement('div');
   pv.className = 'pv';
-
-  let html = '';
-  html += '<h1>שאלון הערכה להפרעת קשב לפי DSM-V</h1>';
-  html += '<p class="pv-sub">' + (isStaff ? 'שאלון לצוות החינוכי' : 'שאלון להורים') + '</p>';
-
-  html += '<div class="pv-meta">';
-  html += '<div><b>שם הילד/ה:</b> ' + esc(d.meta.child || '-') + '</div>';
-  html += '<div><b>תאריך:</b> ' + esc(formatDate(d.meta.date)) + '</div>';
-  html += '<div><b>' + (isStaff ? 'ממלא/ת השאלון:' : 'שם ההורה:') + '</b> ' +
-          esc(d.meta.filler || '-') + '</div>';
-  html += '</div>';
-
-  if (isStaff) {
-    html += '<h2>תיאור מצב הילד/ה</h2>';
-    FREE_FIELDS.forEach(f => {
-      html += '<div class="pv-free"><b>' + esc(f.label) + '</b><p>' +
-              esc(d.free[f.name] || '') + '</p></div>';
-    });
-  }
-
-  GROUPS.forEach(g => {
-    html += '<h2>' + esc(g.title) + '</h2>';
-    html += '<table><thead><tr><th>#</th><th>הפריט</th>';
-    OPTIONS.forEach(o => { html += '<th class="c">' + esc(o) + '</th>'; });
-    html += '</tr></thead><tbody>';
-    g.items.forEach((text, i) => {
-      const num = (g.startNum || 1) + i;
-      const val = d.answers[g.key + '_' + num];
-      html += '<tr><td class="c" style="width:26px">' + num + '</td><td>' + esc(text) + '</td>';
-      OPTIONS.forEach(o => {
-        const on = val === o;
-        html += '<td class="c' + (on ? ' mark' : '') + '">' + (on ? 'X' : '') + '</td>';
-      });
-      html += '</tr>';
-    });
-    html += '</tbody></table>';
-  });
-
-  const unanswered = TOTAL_ITEMS - Object.values(d.answers).filter(Boolean).length;
-  html += '<p class="pv-foot">' +
-    (unanswered ? 'שים לב: ' + unanswered + ' פריטים נותרו ללא מענה. ' : '') +
-    'הטופס מולא ונחתם דיגיטלית בתאריך ' + todayStr() + '.</p>';
-
-  pv.innerHTML = html;
-
+  pv.innerHTML = buildPrintHtml(collect(), formType,
+    'הטופס מולא ונחתם דיגיטלית בתאריך ' + todayStr() + '.');
   const root = $('#print-root');
   root.innerHTML = '';
   root.appendChild(pv);
   return pv;
 }
 
-function formatDate(iso) {
-  if (!iso) return '-';
-  const p = iso.split('-');
-  return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : iso;
-}
-
-function todayStr() {
-  const t = new Date();
-  const p = n => String(n).padStart(2, '0');
-  return p(t.getDate()) + '.' + p(t.getMonth() + 1) + '.' + t.getFullYear();
-}
-
-/* ---------------- הפקת PDF דרך הדפסת הדפדפן ---------------- */
-
-/* הדפדפן מייצר את ה-PDF בעצמו ("שמירה כ-PDF"). כך הטקסט העברי נשאר טקסט
-   אמיתי הניתן לחיפוש והעתקה, הקובץ קטן, ואין תלות בספריות חיצוניות. */
-
-/* שם הקובץ המוצע נלקח מכותרת המסמך, ולכן משנים אותה רגע לפני ההדפסה. */
 function pdfName() {
   const child = ($('#child').value.trim() || 'ללא שם').replace(/[\\/:*?"<>|]/g, '');
   const who = formType === 'staff' ? 'צוות חינוכי' : 'הורים';
@@ -312,12 +249,10 @@ function exportPdf() {
   window.print();
 }
 
-function afterPrint() {
+window.addEventListener('afterprint', () => {
   document.title = PAGE_TITLE;
   $('#print-root').innerHTML = '';
-}
-
-window.addEventListener('afterprint', afterPrint);
+});
 
 /* ---------------- הודעות ---------------- */
 
@@ -345,10 +280,18 @@ function openForm(type) {
   buildScale();
 
   if (!$('#date').value) $('#date').value = new Date().toISOString().slice(0, 10);
-  locked = load();
+
+  const st = load();
+  locked = st.locked;
+  sent = st.sent;
 
   applyLockState();
   updateProgress();
+  if (locked && sent) {
+    setSendStatus('ok', '<b>התשובות נשלחו בהצלחה.</b> אפשר לסגור את העמוד.');
+  } else if (locked && !sent) {
+    trySend();
+  }
 
   $('#screen-pick').classList.add('hidden');
   $('#screen-form').classList.remove('hidden');

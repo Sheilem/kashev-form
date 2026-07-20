@@ -32,7 +32,8 @@
     </div>
 
     <p class="foot-note">
-      הטופס נשמר במכשיר בלבד. בסיום המילוי ניתן לנעול אותו ולהוריד כקובץ PDF לשליחה.
+      המילוי נשמר במכשיר תוך כדי העבודה. בסיום, התשובות נשלחות אל גל
+      וניתן גם להפיק מהן קובץ PDF.
     </p>
   </section>
 
@@ -54,8 +55,10 @@
 
     <div id="locked-banner" class="banner hidden">
       <strong>הטופס נעול</strong>
-      <span>המילוי הושלם ואינו ניתן לשינוי. ניתן להוריד את ה-PDF שוב בכל עת.</span>
+      <span>המילוי הושלם ואינו ניתן לשינוי. ניתן להפיק את ה-PDF שוב בכל עת.</span>
     </div>
+
+    <div id="send-status" class="send-status hidden"></div>
 
     <form id="the-form" autocomplete="off">
 
@@ -125,7 +128,10 @@
       <button type="button" id="btn-unlock" class="ghost hidden">ביטול נעילה</button>
     </div>
 
-    <p class="foot-note">הנתונים נשמרים במכשיר זה בלבד ואינם נשלחים לשום שרת.</p>
+    <p class="foot-note">
+      בעת הנעילה התשובות נשלחות אל גל ונשמרות בצורה מאובטחת.
+      עד אז הן נשמרות במכשיר זה בלבד.
+    </p>
   </section>
 
 </div>
@@ -135,6 +141,8 @@
 
 <div id="toast" class="toast hidden"></div>
 
+<script src="config.js"></script>
+<script src="questionnaire.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

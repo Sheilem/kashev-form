@@ -147,6 +147,28 @@ input:disabled,textarea:disabled{background:#f7f8fa;color:#444;-webkit-text-fill
 .secondary{background:#fff;color:var(--brand);border-color:var(--brand)}
 .ghost{background:transparent;color:var(--muted);border-color:var(--line);font-weight:500;font-size:15px}
 
+/* ---------- מצב השליחה לשרת ---------- */
+.send-status{
+  border-radius:var(--radius);padding:13px 15px;margin-bottom:14px;
+  font-size:14.5px;line-height:1.5;border:1px solid transparent;
+}
+.send-status b{display:block;margin-bottom:2px}
+.send-status.pending{background:#eef3fb;border-color:#c9dbf5;color:#1a3d6d}
+.send-status.ok     {background:#e8f5ee;border-color:#b8e0c8;color:#14532d}
+.send-status.err    {background:#fdeceb;border-color:#f3c2be;color:#8a1c13}
+.send-status button{
+  display:block;width:100%;margin-top:10px;padding:10px;
+  font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;
+  border-radius:10px;border:1.5px solid currentColor;background:#fff;color:inherit;
+}
+
+/* תצוגת טופס שהתקבל, משובצת בתוך העמוד */
+.pv-inline{
+  width:auto;padding:0;font-size:13.5px;
+}
+.pv-inline table{font-size:13px}
+.pv-inline th,.pv-inline td{padding:6px 7px}
+
 .pdf-hint{
   margin:-2px 2px 4px;color:var(--muted);font-size:13.5px;line-height:1.5;text-align:center;
 }
