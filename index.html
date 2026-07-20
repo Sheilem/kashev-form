@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<title>שאלון הערכה להפרעת קשב</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ מסך פתיחה ============ -->
+  <section id="screen-pick" class="screen">
+    <header class="hero">
+      <h1>שאלון הערכה להפרעת קשב</h1>
+      <p class="sub">לפי DSM-V</p>
+    </header>
+
+    <div class="card">
+      <h2>מי ממלא את השאלון?</h2>
+      <button class="pick" data-form="staff">
+        <span class="pick-title">צוות חינוכי</span>
+        <span class="pick-sub">גננת / מורה / יועצת</span>
+      </button>
+      <button class="pick" data-form="parent">
+        <span class="pick-title">הורים</span>
+        <span class="pick-sub">מילוי עצמי לפני הביקור</span>
+      </button>
+    </div>
+
+    <p class="foot-note">
+      הטופס נשמר במכשיר בלבד. בסיום המילוי ניתן לנעול אותו ולהוריד כקובץ PDF לשליחה.
+    </p>
+  </section>
+
+  <!-- ============ הטופס ============ -->
+  <section id="screen-form" class="screen hidden">
+
+    <header class="bar">
+      <button id="btn-back" class="bar-btn" type="button" aria-label="חזרה">&#8594;</button>
+      <div class="bar-title">
+        <strong id="form-title">שאלון</strong>
+        <small id="form-sub">לפי DSM-V</small>
+      </div>
+    </header>
+
+    <div id="progress-wrap">
+      <div id="progress-bar"></div>
+    </div>
+    <p id="progress-text"></p>
+
+    <div id="locked-banner" class="banner hidden">
+      <strong>הטופס נעול</strong>
+      <span>המילוי הושלם ואינו ניתן לשינוי. ניתן להוריד את ה-PDF שוב בכל עת.</span>
+    </div>
+
+    <form id="the-form" autocomplete="off">
+
+      <div class="card">
+        <label class="field">
+          <span>שם הילד/ה</span>
+          <input type="text" id="child" name="child" placeholder="שם מלא">
+        </label>
+        <label class="field">
+          <span>תאריך</span>
+          <input type="date" id="date" name="date">
+        </label>
+        <label class="field" id="filler-field">
+          <span id="filler-label">שם הממלא/ת ותפקיד</span>
+          <input type="text" id="filler" name="filler" placeholder="לדוגמה: רונית לוי, מחנכת כיתה ב'">
+        </label>
+      </div>
+
+      <!-- הנחיות להורים -->
+      <details class="card info" id="parent-info">
+        <summary>הנחיות ומסמכים להביא לפגישה</summary>
+        <div class="info-body">
+          <p>לקביעת תור בנושא הפרעת קשב אנא התקשרו למרפאה בטלפון
+             <a href="tel:037163311">03-7163311</a>, כדי שנסביר לכם במפורט מה צריך להכין מראש.
+             נבקש את המסמכים הבאים:</p>
+          <ol>
+            <li><b>שאלון זה</b>, שתמלאו בעצמכם לפני הביקור. השאלות מתייחסות למצבו של הילד בבית בלבד.
+                אנא הקפידו למלא את השאלון לפני שתקראו את השאלון של הגננת או המורה, כדי שלא תושפעו מהתרשמותה.</li>
+            <li><b>שאלון מהצוות החינוכי</b> (גננת, מורה, יועצת), הכולל מידע על מצבו של ילדכם מבחינת הישגים,
+                עמידה במטלות, התנהגות, מצב חברתי ורגשי.</li>
+            <li><b>בדיקת רופא עיניים ובדיקת שמיעה</b>: אם היו תקינות, אין צורך להביאן.</li>
+            <li><b>אבחון דידקטי או פסיכודידקטי</b>: אם בוצע (לא הכרחי). ניתן לבצעו דרך השירות הפסיכולוגי החינוכי
+                (פנו ליועצת ביה"ס) או באופן פרטי, וביצועו המוקדם יסייע להשלמת אבחון הקשב אצל הנוירולוג.</li>
+            <li><b>מסמכים נוספים</b>: רק אם יש, כגון סיכום מריפוי בעיסוק, קלינאית תקשורת, פסיכולוג,
+                פסיכיאטר, EEG וכו'.</li>
+          </ol>
+        </div>
+      </details>
+
+      <!-- שדות טקסט לצוות החינוכי -->
+      <div class="card" id="staff-text">
+        <h2>תיאור מצב הילד/ה</h2>
+        <p class="hint">אנא פרט/י לגבי מצב הילד/ה בתחומים הבאים:</p>
+        <label class="field"><span>1. הישגים לימודיים</span>
+          <textarea name="t_academic" rows="3"></textarea></label>
+        <label class="field"><span>2. עמידה במטלות</span>
+          <textarea name="t_tasks" rows="3"></textarea></label>
+        <label class="field"><span>3. מצב חברתי</span>
+          <textarea name="t_social" rows="3"></textarea></label>
+        <label class="field"><span>4. התנהגות</span>
+          <textarea name="t_behavior" rows="3"></textarea></label>
+        <label class="field"><span>הערות נוספות</span>
+          <textarea name="t_notes" rows="4"></textarea></label>
+      </div>
+
+      <div id="scale-root"></div>
+
+    </form>
+
+    <div class="actions" id="actions">
+      <button type="button" id="btn-lock" class="primary">סיום ונעילת הטופס</button>
+      <button type="button" id="btn-pdf" class="secondary hidden">הורדת PDF</button>
+      <button type="button" id="btn-share" class="secondary hidden">שליחת ה-PDF</button>
+      <button type="button" id="btn-unlock" class="ghost hidden">ביטול נעילה</button>
+    </div>
+
+    <p class="foot-note">הנתונים נשמרים במכשיר זה בלבד ואינם נשלחים לשום שרת.</p>
+  </section>
+
+</div>
+
+<!-- תצוגת ההדפסה / ה-PDF נבנית לתוך אלמנט זה -->
+<div id="print-root" aria-hidden="true"></div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
