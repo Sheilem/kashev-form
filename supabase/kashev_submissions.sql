@@ -1,10 +1,14 @@
--- טבלת התשובות של שאלון הקשב, בפרויקט Hasifa (ntmswvkcnlojksyypquc).
+-- טבלת התשובות של שאלון הקשב.
+-- הוחלה על פרויקט exodus-run-schedule (omrdtxxbzwakanhnepnp) כמיגרציה
+-- בשם kashev_submissions. הקובץ נשמר כאן לתיעוד ולהרצה חוזרת בטוחה.
 --
 -- מודל ההרשאות, בכוונה מצומצם:
 --   anon          - רשאי להכניס שורה בלבד. אין לו הרשאת קריאה, ולכן
 --                   המפתח האנונימי שמוטמע בטופס הציבורי אינו יכול לשלוף
 --                   שום תשובה, גם לא את זו שהוא עצמו כתב.
---   authenticated - רשאי לקרוא. זה המסלול של עמוד הצפייה, אחרי התחברות.
+--   authenticated - הקריאה מוגבלת למשתמש בודד (גל) ולא לכל משתמש מחובר.
+--                   בפרויקט הזה יש עוד משתמשים אמיתיים, ובלי ההגבלה
+--                   הזו כל אחד מהם היה יכול לשלוף מידע רפואי על ילד.
 --
 -- שים לב: הכנסה פתוחה לאנונימי פירושה שמי שיודע את הכתובת יכול לשלוח
 -- טפסים מזויפים. עבור שאלון אחד זה מקובל; אם זה יהפוך למטרד, הדרך הנקייה
@@ -30,19 +34,19 @@ create index if not exists kashev_submissions_created_at_idx
 
 alter table public.kashev_submissions enable row level security;
 
--- מחיקה ויצירה מחדש כדי שהקובץ יהיה בטוח להרצה חוזרת
 drop policy if exists kashev_anon_can_insert   on public.kashev_submissions;
 drop policy if exists kashev_authed_can_select on public.kashev_submissions;
+drop policy if exists kashev_owner_can_select  on public.kashev_submissions;
 
 create policy kashev_anon_can_insert
   on public.kashev_submissions
   for insert to anon
   with check (true);
 
-create policy kashev_authed_can_select
+create policy kashev_owner_can_select
   on public.kashev_submissions
   for select to authenticated
-  using (true);
+  using ((select auth.uid()) = 'f2f36808-7a36-4e7b-92c1-396222c9e756');
 
 -- PostgREST בודק גם הרשאות ברמת הטבלה, לא רק RLS
 grant insert on public.kashev_submissions to anon;
